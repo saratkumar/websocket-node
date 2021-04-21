@@ -1,4 +1,3 @@
-# websocket-node
 
 # Websocket-node
 
