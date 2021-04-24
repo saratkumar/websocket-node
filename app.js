@@ -5,9 +5,10 @@ const cors = require('cors');
 const http = require('http');
 const fs = require("fs");
 const helper = require("./constants/common")
-
+var interval;
+var source = '';
 const process = require('process');
-
+const { clearInterval } = require('timers');
 app.use(cors());
 app.use('/api', router);
 router.get('/get-stats', (req, res) => {
@@ -35,22 +36,25 @@ const io = require("socket.io")(server, {
 const port = process.env.PORT || 3000;
 
 io.on('connection', (socket) => {
-  
   io.emit(helper.EVENTLIST.CONNECT_STATUS, true);
-  socket.on(helper.EVENTLIST.REQUEST_FOR_NEW_DATA, (message) => {
-    fs.readFile(helper.MOCK_DATA_URL, function (err, data) {
-      // Check for errors
-      if (err) throw err;
-      // Converting to JSON
-      const source = JSON.parse(data);
-      loadMockData(source);
-
-      //For demo purpose loading data again
-      setTimeout(() => {
-        loadMockData(source);
-      }, 5000);
+  socket.on('test', (count) => {
+    clearInterval(interval);
+    io.emit('stats', { cpuUsage: process.cpuUsage(), currentTime: new Date(new Date().toUTCString()), purpose: 'stats' });
+  });
+  socket.on(helper.EVENTLIST.REQUEST_FOR_NEW_DATA, (count) => {
+    if(count) {
+      loadMockData(count);
+    } else {
+      fs.readFile(helper.MOCK_DATA_URL, function (err, data) {
+        // Check for errors
+        if (err) throw err;
+        // Converting to JSON
+        source = JSON.parse(data);
+        loadMockData();
+      });
+    }
       
-    });
+    
     // io.emit('new-message', message);
   });
 
@@ -65,18 +69,18 @@ server.listen(port, () => {
   console.log(`started on port: ${port}`);
 });
 
-function loadMockData(source) {
-  let count = 0;
-  let interval = 1000;
-  let = setInterval(() => {
-    if (count < 5) {
-      let res = source.datatable.data.slice(count, count + 2000);
-      io.emit(helper.EVENTLIST.INCOMING_DATA, res);
-      count++;
-    } else {
-      interval = 0;
-    }
-  }, interval);
+function loadMockData(count) {
+  count = count ? count : 0;
+  interval = setInterval(() => {
+    if (count > source.datatable.data.length) count = 0;
+    let res = source.datatable.data.slice(count, count + 1000);
+    io.emit(helper.EVENTLIST.INCOMING_DATA, res);
+    count = count + 1000;
+  }, 100);
+
+  
+  
+
 }
 
 
